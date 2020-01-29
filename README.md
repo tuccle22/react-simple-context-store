@@ -28,7 +28,7 @@ pass in an initial state and this function returns an array containing a `Provid
 ```js
 import { createStore } from 'react-simple-context-store
 const [
-  ListProvider, useStoreState, updateStoreState
+  ListProvider, useStoreState, useUpdateStoreState
 ] = createStore({
   id: { text: 'item #1' },
   id: { text: 'item #2' },
@@ -43,15 +43,15 @@ const SomeList = () => {
   const listItems = useStoreState()
   // usually you wouldn't use updateStoreState
   // in a component directly
-  const updateState = updateStoreState()
+  const updateState = useUpdateStoreState()
   return (
     <ul>
       {Object.entries(listItems).map(([id, { text }])) => 
         <li key={id}
-        // reverses the text of the clicked on item by mutating the state
-        // thanks to the state being tracked with immer
-         onClick={() => updateState(state => {state[id].text.split('').reverse().join('')})}>
-         {item}
+          // because the state uses immer, we only need to mutate
+          // the state for immer to return a copy of mutated state
+          onClick={() => updateState(state => {state[id].text = '-------')}>
+          {item}
         </li>
       }
     </ul>
@@ -83,7 +83,7 @@ render(
   document.getElementeBy('root')
 )
 ```
-#### Complete library code (56 lines):
+#### Complete library code (55 lines):
 
 ```js
 import React, { createContext, useContext, useState, useCallback } from 'react';
