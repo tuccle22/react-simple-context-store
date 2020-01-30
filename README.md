@@ -1,19 +1,18 @@
 ## React Simple Context Store
 
-This is an example of using react's context to manage a global state.
-This implementation has limitations, in part due to the limitations of
-react context, but also probably due to how it's implemented.
+This is a proof of concept of using react's context and hooks to manage the access and mutation of state, globally (and/or locally).
+This implementation is inferior to redux in many ways.
 
 ### Contents
 
 This repository was bootstrapped with create-react-app, so start the
-development server with `yarn start` or `npm start`.
+development server with `yarn start` or `npm start` to see the example app.
 
 #### TodoListExample
 
-This repository contains a TodoListExample app which is a copy
+The TodoListExample app is a copy
 of this https://codesandbox.io/s/rtk-convert-todos-example-uqqy3?from-embed
-todo list app, using react-simple-context-store instead of redux to manage state. The linked app isn't using the hooks in react-redux, so it is a little more verbose than it could be.
+todo list app, using react-simple-context-store (this non existant library) instead of redux to manage state. The linked app isn't using react-redux hooks, so it is more verbose than it could be.
 
 #### React-Simple-Context-Store
 
@@ -26,17 +25,17 @@ import { createStore, createGlobaStoreProvider } from 'react-simple-context-stor
 pass in an initial state and this function returns an array containing a `Provider` component, `useStoreState` hook to access the store's state, and `useUpdateStore` hook that returns a function, which takes a state update function.
 
 ```js
-import { createStore } from 'react-simple-context-store
+import { createStore } from 'react-simple-context-store'
 const [
   ListProvider, useStoreState, useUpdateStoreState
 ] = createStore({
-  id: { text: 'item #1' },
-  id: { text: 'item #2' },
-  id: { text: 'item #3' }
+  '1': { text: 'item #1' },
+  '2': { text: 'item #2' },
+  '3': { text: 'item #3' }
 })
 const Sidebar = () => (
-  <ListProvider> // a non global store
-    <SomeList>
+  <ListProvider> {/** a local context store  */ }
+    <SomeList />
   </ListProvider>
 )
 const SomeList = () => {
@@ -46,24 +45,26 @@ const SomeList = () => {
   const updateState = useUpdateStoreState()
   return (
     <ul>
-      {Object.entries(listItems).map(([id, { text }])) => 
+      { Object.entries(listItems).map(([id, { text }]) => 
         <li key={id}
           // because the state uses immer, we only need to mutate
           // the state for immer to return a copy of mutated state
-          onClick={() => updateState(state => {state[id].text = '-------')}>
-          {item}
+          onClick={() => updateState(state => {
+            state[id].text = '-------'
+          })}>
+          {text}
         </li>
-      }
+      )}
     </ul>
   )
 }
 ```
 
 #### #2 `createGlobalStoreProvider([...providers])` 
-pass in an array of the first array result from the `createStore` returned array. (You can pass any components that take a children prop and pass it through here)   
+Pass in an array of the first array result from the `createStore` funtion result. This function just reduces any number of react components into a single nested hierarchy (you can pass any components that take a children prop and passes it through, such as a component with a hook that listens for server side changes).
 
 ```js
-import { createStore,  createGlobalStoreProvider } from 'react-simple-context-store
+import { createStore,  createGlobalStoreProvider } from 'react-simple-context-store'
 
 const [ListProvider,] = createStore([])
 const [TodoProvider,] = createStore({hello: { world: '!'}})
@@ -73,20 +74,47 @@ const GlobalStoreProvider = createGlobalStoreProvider([
   ListProvider,
   TodoProvider,
   ThemeProvider,
-  ...etc
 ])
-. . . 
+
 render(
   <GlobalStoreProvider>
-    <App>
+    <App />
   </GlobalStoreProvider>,
+  /**
+   * Three global stores create the hierarchy below. Because
+   * of this deeply nested structure it would be wise to limit
+   * the number of glabl stores added.
+   * 
+   * This is the component hierarchy the above produces.
+   * <GlobalStoreProvider>
+   *   <ListProvider>
+   *     <ListProviderActions.Provider>
+   *       <ListProviderState.Provider>
+   *         <TodoProvider>
+   *           <TodoProviderActions.Provider>
+   *             <TodoProviderState.Provider>
+   *               <ThemeProvider>
+   *                 <ThemeProviderActions.Provider>
+   *                   <ThemeProviderState.Provider>
+   *                     <App />
+   *                   </ThemeProviderState.Provider>
+   *                 </ThemeProviderActions.Provider>
+   *               </ThemeProvider>
+   *             <TodoProviderState.Provider>
+   *           <TodoProviderActions.Provider>
+   *         </TodoProvider>
+   *       </ListProviderState.Provider>
+   *     </ListProviderActions.Provider>
+   *   </ListProvider>
+   * </GlobalStoreProvider>
+   */
   document.getElementeBy('root')
 )
 ```
-#### Complete library code (55 lines):
+#### Complete library code:
 
 ```js
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import nextImmutableState from 'immer';
 /**
  * Creates a store that returns a Provider, a hook to get the state,
@@ -103,26 +131,31 @@ import nextImmutableState from 'immer';
  */
 function createStore(initialState) {
   const StateContext = createContext()
-  const SetStateContext = createContext()
+  const MutateStateContext = createContext()
 
   const useStoreState = () => useContext(StateContext)
-  const useUpdateStore = () => useContext(SetStateContext)
+  const useUpdateStore = () => useContext(MutateStateContext)
 
-  function CombinedProvider({children}) {
+  function CombinedProvider({children, displayName}) {
     const [state, updateState] = useState(initialState)
     const updateStateImmutably = useCallback(cb => {
       updateState(state => nextImmutableState(state, cb))
     }, [])
+    // for debugging purposes
+    useEffect(() => {
+      StateContext.displayName = displayName + 'State'
+      MutateStateContext.displayName = displayName + 'Actions'
+    }, [displayName])
     return ( 
       // Having the updateState function and the state in different
       // contexts prevents unnecessary renders of components
       // using the updater but not using state, which would be the 
       // case if actions and state were in one context
-      <SetStateContext.Provider value={updateStateImmutably}>
+      <MutateStateContext.Provider value={updateStateImmutably}>
         <StateContext.Provider value={state}>
           {children}
         </StateContext.Provider>
-      </SetStateContext.Provider>
+      </MutateStateContext.Provider>
     )
   }
   return [ CombinedProvider, useStoreState, useUpdateStore ]
@@ -132,10 +165,11 @@ function createStore(initialState) {
  * @param {Array} stores 
  * @returns {React.Element}
  */
-const createGlobalStoreProvider = (providers) => {
+const createGlobalStoreProvider = ({...providers}) => {
   return function RootProvider({children}) {
-    return providers.reduce((tree, Provider) => {
-      return <Provider>{tree}</Provider>
+    return Object.entries(providers).reduce((tree, [name, Provider]) => {
+      Provider.displayName = name
+      return <Provider displayName={name}>{tree}</Provider>
     }, children)
   }
 }
