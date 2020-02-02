@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import nextImmutableState from 'immer';
 /**
- * Creates a store that returns a Provider, a hook to get the state,
+ * Creates a context store that returns a Provider, a hook that returns the state,
  * and a hook that returns an update function
- * @param {any} initialState
+ * @param {any} initialState - initial store state
  * @returns {Array} [
- *    <Provider>{children}<Provider - Provider component,
+ *    Provider: ReactElement - Provider component that takes children,
  *    useStoreState(): any - get the state of the store
  *    useUpdateStore(): Function - hook that returns a state updater
  * ]
@@ -14,48 +14,38 @@ import nextImmutableState from 'immer';
  * without returning anything.
  */
 function createStore(initialState) {
-  const StateContext = createContext()
+  const ReadStateContext = createContext()
   const MutateStateContext = createContext()
 
-  const useStoreState = () => useContext(StateContext)
-  const useUpdateStore = () => useContext(MutateStateContext)
-
-  function CombinedProvider({children, displayName}) {
+  function CombinedProvider({children, displayName = ''}) {
     const [state, updateState] = useState(initialState)
     const updateStateImmutably = useCallback(cb => {
       updateState(state => nextImmutableState(state, cb))
     }, [])
     // for debugging purposes
     useEffect(() => {
-      StateContext.displayName = displayName + 'State'
-      MutateStateContext.displayName = displayName + 'Actions'
+      ReadStateContext.displayName = displayName + 'State'
+      MutateStateContext.displayName = displayName + 'Mutator'
     }, [displayName])
+
     return ( 
       // Having the updateState function and the state in different
       // contexts prevents unnecessary renders of components
       // using the updater but not using state, which would be the 
       // case if actions and state were in one context
       <MutateStateContext.Provider value={updateStateImmutably}>
-        <StateContext.Provider value={state}>
+        <ReadStateContext.Provider value={state}>
           {children}
-        </StateContext.Provider>
+        </ReadStateContext.Provider>
       </MutateStateContext.Provider>
     )
   }
-  return [ CombinedProvider, useStoreState, useUpdateStore ]
-}
-/**
- * Creates a Global Provider by nesting the individual providers
- * @param {Array} stores 
- * @returns {React.Element}
- */
-const createGlobalStoreProvider = ({...providers}) => {
-  return function RootProvider({children}) {
-    return Object.entries(providers).reduce((tree, [name, Provider]) => {
-      Provider.displayName = name
-      return <Provider displayName={name}>{tree}</Provider>
-    }, children)
-  }
+  // hook that returns the state
+  const useReadState = () => useContext(ReadStateContext)
+  // hook that returns a function for mutating the state
+  const useMutateState = () => useContext(MutateStateContext)
+
+  return [ CombinedProvider, useReadState, useMutateState ]
 }
 
-export { createGlobalStoreProvider, createStore }
+export default createStore

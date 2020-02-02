@@ -31,5 +31,6 @@ export {
   useAddTodo,
   useToggleTodo,
   useTodoState,
+  useUpdateTodoState,
   TodosProvider as default
 }

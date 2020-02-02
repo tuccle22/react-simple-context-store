@@ -1,4 +1,4 @@
-import { createStore } from '../../../SimpleContextStore'
+import { createStore } from '../../../react-context-state-fns'
 
 const VisibilityFilters = {
   SHOW_ALL: 'SHOW_ALL',

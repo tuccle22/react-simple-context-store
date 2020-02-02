@@ -1,12 +1,12 @@
 import { useCallback } from 'react'
-import { createStore } from '../../../SimpleContextStore'
+import { createStore } from '../../../react-context-state-fns'
 
 const [
   TodosProvider, 
   useTodoState, 
   useUpdateTodoState
 ] = createStore([])
-
+console.log(useTodoState)
 let todoId = 0
 const getNextId = () => todoId++
 
@@ -31,5 +31,6 @@ export {
   useAddTodo,
   useToggleTodo,
   useTodoState,
+  useUpdateTodoState,
   TodosProvider as default
 }

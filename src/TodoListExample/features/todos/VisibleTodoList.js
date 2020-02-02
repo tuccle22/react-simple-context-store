@@ -6,6 +6,7 @@ import { useFilterState, VisibilityFilters } from '../filters//filterStore'
 function useGetFilteredList() {
   const filter = useFilterState()
   const todos = useTodoState()
+  console.log('TODOS!!!!!!!', todos)
   switch (filter) {
     case VisibilityFilters.SHOW_ALL:
       return todos
